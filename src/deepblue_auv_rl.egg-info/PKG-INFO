@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: deepblue-auv-rl
+Version: 0.1.0
+Summary: RL environment for underwater AUV navigation using HoloOcean.
+Requires-Python: >=3.9
+Requires-Dist: numpy
+Requires-Dist: gymnasium
+Provides-Extra: dev
+Requires-Dist: stable-baselines3; extra == "dev"

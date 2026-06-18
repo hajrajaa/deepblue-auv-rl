@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepblue-auv-rl"
+version = "0.1.0"
+description = "RL environment for underwater AUV navigation using HoloOcean."
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "gymnasium",
+]
+
+[project.optional-dependencies]
+dev = [
+    "stable-baselines3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
