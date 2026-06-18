@@ -3,6 +3,6 @@ matplotlib
 pandas
 pyyaml
 gymnasium
-stable-baseline3[extra]
-tensorborad
+stable-baselines3[extra]
+tensorboard
 tqdm
