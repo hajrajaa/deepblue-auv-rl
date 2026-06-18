@@ -86,10 +86,13 @@ install_holoocean_client() {
 
     mkdir -p "$WORKSPACE_DIR/external"
 
-    if [ ! -d "$WORKSPACE_DIR/external/holoocean" ]; then
-        echo "Cloning HoloOcean repository..."
+    echo "Checking GitHub SSH access..."
+    ssh -T git@github.com || true
 
-        git clone https://github.com/byu-holoocean/HoloOcean.git "$WORKSPACE_DIR/external/holoocean" 
+    if [ ! -d "$WORKSPACE_DIR/external/holoocean" ]; then
+        echo "Cloning HoloOcean repository using SSH..."
+
+        git clone git@github.com:byu-holoocean/HoloOcean.git "$WORKSPACE_DIR/external/holoocean"    
     else
         echo "HoloOcean repo already exists. Pulling latest changes..."
         cd "$WORKSPACE_DIR/external/holoocean"
