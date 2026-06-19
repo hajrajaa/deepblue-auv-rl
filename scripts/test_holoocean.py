@@ -129,7 +129,7 @@ def main():
             scenario_name,
             show_viewport=args.viewport,
             verbose=True,
-            ticks_per_second=30,
+            ticks_per_se=30,
             frames_per_sec=False,
         )
 

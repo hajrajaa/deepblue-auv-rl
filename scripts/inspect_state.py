@@ -6,7 +6,7 @@ from deepblue_auv_rl.envs import AUVTargetEnv, MissionConfig
 def main()->None:
 
     config=MissionConfig(max_steps=20)
-    env=AUVTargetEnv(config=config,show_viewport=False,varebose=True)
+    env=AUVTargetEnv(config=config,show_viewport=False,verbose=True)
 
     try:
 
