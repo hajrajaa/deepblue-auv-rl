@@ -91,7 +91,7 @@ class AUVTargetEnv(gym.Env):
 
         self.commanded_position=np.array(self.config.start_position, dtype=np.float32)
         self.target_position=np.array(self.config.target_position, dtype=np.float32)
-        self.yaw_def=0.0
+        self.yaw_deg=0.0
         self.previous_distance:float| None=None
 
         if auto_start:
@@ -102,8 +102,11 @@ class AUVTargetEnv(gym.Env):
 
         return{
             "name":"TargetMission",
+            "package_name":"Ocean",
             "world":self.config.world,
-            "ticks_per_action":30,
+            "main_agent":self.config.agent_name,
+
+            "ticks_per_sec":30,
             "frames_per_sec":False,
             "env_min":list(self.config.bounds_min),
             "env_max":list(self.config.bounds_max),
@@ -122,7 +125,7 @@ class AUVTargetEnv(gym.Env):
                             "sensor_name":"LocationSensor",
                             "Hz":30,
                             "configure": {
-                                "Sigma:0.0",
+                                "Sigma":0.0,
                             },
                         },
                         {
@@ -212,7 +215,7 @@ class AUVTargetEnv(gym.Env):
         distance=self._distance_to_target(position)
         self.previous_distance=distance
 
-        observation=self._make_observation(raw_state)
+        observation=self._make_observation(position)
         info=self._make_info(
             position=position,
             distance=distance,
@@ -252,7 +255,7 @@ class AUVTargetEnv(gym.Env):
         reward=self.config.progress_reward_scale*progress + self.config.step_penalty
 
         success=distance<=self.config.reach_threshold
-        out_of_bounds=not self._is_within_bounds(position)
+        out_of_bounds=self._is_out_of_bounds(position)
 
         terminated=False
         truncated=False
@@ -272,7 +275,7 @@ class AUVTargetEnv(gym.Env):
 
         self.previous_distance=distance
 
-        observation=self._make_observation(raw_state)
+        observation=self._make_observation(position)
         info=self._make_info(
             position=position,
             distance=distance,
@@ -412,7 +415,7 @@ class AUVTargetEnv(gym.Env):
 
         for key in ["LocationSensor", "location","Location"]:
             if key in sensors :
-                position=np.asanyarray(sensors[key], dtype=np.float32).reashape(-1)
+                position=np.asanyarray(sensors[key], dtype=np.float32).reshape(-1)
 
                 if position.size>=3:
                     return position[:3].astype(np.float32)
