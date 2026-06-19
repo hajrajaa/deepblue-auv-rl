@@ -23,7 +23,7 @@ class MissionConfig:
 
 
     world:str="PierHarbor"
-    agent:str="auv0"
+    agent_name:str="auv0"
 
 
     #fixed simple start and target for now 
