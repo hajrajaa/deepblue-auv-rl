@@ -23,7 +23,7 @@ def main()->None:
     args=parse_args()
 
     config=MissionConfig(max_steps=args.steps)
-    env=AUVTargetEnv(config=config,show_viewport=args.show_view)
+    env=AUVTargetEnv(config=config,show_viewport=args.viewport)
 
     episode_returns:list[float]=[]
     final_distances:list[float]=[]
@@ -42,13 +42,13 @@ def main()->None:
                 action=env.action_space.sample()
                 obs, reward, terminated, truncated, info=env.step(action)
                 total_reward+=reward
+                min_distance=min(min_distance, info["distance_to_target"])
 
                 if terminated or truncated:
                     break
             
             episode_returns.append(total_reward)
             final_distances.append(info["distance_to_target"])
-            successes.append(info["success"])
 
             print(
                 f"episode={episode + 1:03d} "
