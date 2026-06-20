@@ -1,0 +1,16 @@
+{
+  "algorithm": "PPO",
+  "policy": "MlpPolicy",
+  "total_timesteps": 1000,
+  "seed": 42,
+  "device": "auto",
+  "model_path": "/workspace/deepblue-auv-rl/models/ppo_auv_target_1000_steps.zip",
+  "elapsed_time_seconds": 71.4899959564209,
+  "environment": {
+    "fixed_target": true,
+    "fixed_target_position": true,
+    "obstacles": false,
+    "random_start": false,
+    "random_target": false
+  }
+}
