@@ -147,7 +147,7 @@ def main() -> None:
         n_episodes=5,
         max_steps=30,
         seed=0,
-        varbos=True,
+        verbose=True,
     )
 
     random_summary = summarize_episode_stats(random_stats)
@@ -166,7 +166,7 @@ def main() -> None:
         n_episodes=5,
         max_steps=30,
         seed=0,
-        varbos=True,
+        verbose=True,
     )
 
     greedy_summary = summarize_episode_stats(greedy_stats)

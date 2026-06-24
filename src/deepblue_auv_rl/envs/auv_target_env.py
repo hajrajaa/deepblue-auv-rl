@@ -30,6 +30,9 @@ class MissionConfig:
     start_position:tuple[float,float,float]=(0.0,0.0,-5.0)
     target_position:tuple[float,float,float]=(10.0,0.0,-5.0)
 
+    random_start:bool=False
+    random_target:bool=False
+
     #Mission limits. If the AUV leaves this box , the episode will terminate.
     bounds_min:tuple[float,float,float]=(-50.0,-50.0,-30.0)
     bounds_max:tuple[float,float,float]=(50.0,50.0,0.0)
@@ -52,10 +55,26 @@ class MissionConfig:
     progress_reward_scale:float=5.0
     out_of_bounds_penalty:float=-50.0
 
+    moving_target:bool=False
+    target_velocity:tuple[float,float,float]=(0.03,0.02,0.0)
 
-    #Keeps this false for now 
-    random_start:bool=False
-    random_target:bool=False
+    obstacles_enabled:bool=False
+    num_obstacles:int=0
+    obstacle_radius:float=1.0
+    safe_distance:float=2.0
+    max_obstacle_sensor_range:float=20.0
+
+    collision_penalty:float=-100.0
+    obstacle_penalty_scale: float = 5.0
+
+    
+
+    obstacle_positions:tuple[tuple[float,float,float],...]=(
+        (3.0, 0.0, -5.0),
+    )
+
+
+
 
 
 class AUVTargetEnv(gym.Env):
@@ -78,11 +97,24 @@ class AUVTargetEnv(gym.Env):
 
         self.action_space=spaces.Discrete(6)
 
-        # change this when start trainig 
-        obs_low=np.array( [-1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, 0.0], dtype=np.float32)
-        obs_high=np.array([1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1.0], dtype=np.float32)
+        # # change this when start trainig 
+        # obs_low=np.array( [-1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, 0.0], dtype=np.float32)
+        # obs_high=np.array([1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1.0], dtype=np.float32)
 
-        self.observation_space=spaces.Box(low=obs_low, high=obs_high, shape=(7,), dtype=np.float32)
+        self.observation_space=spaces.Box(
+            low=np.array([
+                -50.0, -50.0, -50.0,0.0, # target dx,dy,dx, distance 
+                -50.0, -50.0, -50.0, 0.0, # obstacle position x,y,z, distance
+            ],
+            dtype=np.float32),
+            high=np.array([
+                50.0, 50.0, 50.0, 100.0,
+                50.0, 50.0, 50.0, self.config.max_obstacle_sensor_range
+            ],
+            dtype=np.float32),
+            dtype=np.float32,
+
+        )
 
         self._holo_env:Any|None=None
         self._last_raw_state:Any|None=None
@@ -225,6 +257,7 @@ class AUVTargetEnv(gym.Env):
             truncated=False,
             success=False,
             out_of_bounds=False,
+            collision=False,
         )
         info["teleport_ok"]=teleport_ok
 
@@ -240,8 +273,15 @@ class AUVTargetEnv(gym.Env):
 
         if self.previous_distance is None:
             raise RuntimeError("Environment must be reset before stepping.")
-        
 
+        
+        # Optional: move target if moving_target is enabled
+        if self.config.moving_target:
+            self.target_position=(self.target_position+np.asarray(self.config.target_velocity, dtype=np.float32)).astype(np.float32)
+
+        
+        
+        # apply agent action 
         self._apply_discrete_action(int(action))
 
         raw_state=self._holoocean_step(self._make_pd_action(), ticks=self.config.ticks_per_action)
@@ -251,8 +291,21 @@ class AUVTargetEnv(gym.Env):
         position=self._extract_position(raw_state)
         distance=self._distance_to_target(position)
 
+        # get optional info about closest obstacle
+        _,closest_obstacle_distance=self._get_closest_obstacle(position)
+
+        collision=(
+            self.config.obstacles_enabled
+            and closest_obstacle_distance<=self.config.obstacle_radius
+        )
+
+        # Main target reaching reward 
         progress=self.previous_distance-distance
         reward=self.config.progress_reward_scale*progress + self.config.step_penalty
+
+        #Obstcale safe distance penalty
+        if self.config.obstacles_enabled and closest_obstacle_distance<=self.config.safe_distance:
+            reward-=self.config.obstacle_penalty_scale*(self.config.safe_distance-closest_obstacle_distance)
 
         success=distance<=self.config.reach_threshold
         out_of_bounds=self._is_out_of_bounds(position)
@@ -270,6 +323,12 @@ class AUVTargetEnv(gym.Env):
             reward+=self.config.out_of_bounds_penalty
             terminated=True
 
+        if collision:
+            
+            reward+=self.config.collision_penalty
+            terminated=True
+
+
         if self.current_step>=self.config.max_steps and not terminated:
             truncated=True
 
@@ -285,6 +344,7 @@ class AUVTargetEnv(gym.Env):
             truncated=truncated,
             success=success,
             out_of_bounds=out_of_bounds,
+            collision=collision,
         )
 
         return observation, float(reward), terminated, truncated, info
@@ -299,7 +359,7 @@ class AUVTargetEnv(gym.Env):
         
         low=np.array([-5.0, -5.0, -88.0], dtype=np.float32)
         high=np.array([5.0, 5.0, 3.0], dtype=np.float32)
-        return self.np.random.uniform(low=low, high=high).astype(np.float32)
+        return self.np_random.uniform(low=low, high=high).astype(np.float32)
 
     def __choose_target_position(self,options:dict[str, Any]|None)-> np.ndarray:
         if options and "target_position" in options:
@@ -310,7 +370,7 @@ class AUVTargetEnv(gym.Env):
         
         low=np.array([-5.0, -8.0, -8.0], dtype=np.float32)
         high=np.array([15.0, 8.0, -3.0], dtype=np.float32)
-        return self.np.random.uniform(low=low, high=high).astype(np.float32)
+        return self.np_random.uniform(low=low, high=high).astype(np.float32)
 
     def _apply_discrete_action(self, action:int)-> None:
 
@@ -442,22 +502,37 @@ class AUVTargetEnv(gym.Env):
 
     def _make_observation(self,position:np.ndarray)-> np.ndarray:
 
-        distance=self._distance_to_target(position)
+        position=position.astype(np.float32)
 
-        observation=np.array(
-            [
-                position[0],
-                position[1],
-                position[2],
-                self.target_position[0],
-                self.target_position[1],
-                self.target_position[2],
-                distance,
-            ]
-            ,dtype=np.float32
-        )
+        target_delta=self.target_position.astype(np.float32)-position
+        distance_to_target=float(np.linalg.norm(target_delta))
+        obstacle_delta, closest_obstacle_distance=self._get_closest_obstacle(position)
+
+        observation=np.array([
+            target_delta[0], target_delta[1], target_delta[2], distance_to_target,
+            obstacle_delta[0], obstacle_delta[1], obstacle_delta[2], closest_obstacle_distance  
+        ], dtype=np.float32)
 
         return observation
+    
+    def _get_closest_obstacle(self, position:np.ndarray)-> tuple[np.ndarray, float]:
+
+        if not self.config.obstacles_enabled or self.config.num_obstacles==0:
+            dummy_delta=np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            return dummy_delta, float(self.config.max_obstacle_sensor_range)
+        
+        obstacle_positions=np.asarray(self.config.obstacle_positions[:self.config.num_obstacles], dtype=np.float32)
+
+        deltas=obstacle_positions-position.astype(np.float32)
+        distances=np.linalg.norm(deltas, axis=1)
+
+        closest_idx=int(np.argmin(distances))
+        closest_delta=deltas[closest_idx].astype(np.float32)
+        closest_distance=float(distances[closest_idx])
+
+        return closest_delta, closest_distance
+
+
 
     def _distance_to_target(self, position:np.ndarray)-> float:
         
@@ -478,12 +553,18 @@ class AUVTargetEnv(gym.Env):
                 terminated:bool,
                 truncated:bool,
                 success:bool,
-                out_of_bounds:bool)-> dict[str, Any]:
+                out_of_bounds:bool ,
+                collision:bool=False,
+                )-> dict[str, Any]:
+        _, closest_obstacle_distance=self._get_closest_obstacle(position)
         return {
             "step": self.current_step,
             "position": position.astype(np.float32).tolist(),
             "target_position": self.target_position.astype(np.float32).tolist(),
             "distance_to_target": float(distance),
+            "closest_obstacle_distance": float(closest_obstacle_distance),
+            "safe_distance": float(self.config.safe_distance),
+            "collision": bool(collision),
             "previous_distance": None if self.previous_distance is None else float(self.previous_distance),
             "action": action,
             "action_name": None if action is None else ACTION_NAMES.get(action, "unknown"),
@@ -492,7 +573,7 @@ class AUVTargetEnv(gym.Env):
             "out_of_bounds": bool(out_of_bounds),
             "terminated": bool(terminated),
             "truncated": bool(truncated),
-            
+           
         }
 
     def debug_state_keys(self)->dict[str, Any]:
