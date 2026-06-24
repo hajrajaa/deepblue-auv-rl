@@ -15,7 +15,7 @@ from stable_baselines3 import PPO
 from deepblue_auv_rl.envs.auv_target_env import AUVTargetEnv, MissionConfig
 
 from deepblue_auv_rl.evaluation.metrics import (
-    EpiosdeStats,
+    EpisodeStats,
     evaluate_policy,
     make_sb3_policy,
     print_evaluation_summary,
