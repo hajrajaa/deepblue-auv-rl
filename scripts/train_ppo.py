@@ -60,6 +60,7 @@ def build_env_config(stage:str)-> MissionConfig:
             moving_target=False,
             obstacles_enabled=True,
             num_obstacles=1,
+            moving_obstacles=True,
         )
     raise ValueError(f"Unknown training stage: {stage}. Valid stages are: fixed_no_obstacles, random_start_no_obstacles, moving_no_obstacles, fixed_obstacles, moving_obstacles.")
     
@@ -203,7 +204,8 @@ def main():
             "stage": args.stage,
             "random_start": args.stage in ["random_start_no_obstacles","moving_no_obstacles","moving_obstacles"],
             "moving_target": args.stage in ["moving_no_obstacles","moving_obstacles"],
-            "obstacles:": args.stage in ["fixed_obstacles","moving_obstacles"],
+            "obstacles_enabled": args.stage in ["fixed_obstacles","moving_obstacles"],
+            "moving_obstacles": args.stage == "moving_obstacles",
         },
     }
 

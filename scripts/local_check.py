@@ -13,7 +13,7 @@ def main() -> None:
     print("Observation space:", env.observation_space)
 
     assert env.action_space.n == 6
-    assert env.observation_space.shape == (7,)
+    assert env.observation_space.shape == (8,)
 
     print("Action meanings:")
     print("0 = forward")

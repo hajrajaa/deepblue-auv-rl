@@ -49,6 +49,7 @@ def main()->None:
             
             episode_returns.append(total_reward)
             final_distances.append(info["distance_to_target"])
+            successes.append(bool(info["success"]))
 
             print(
                 f"episode={episode + 1:03d} "

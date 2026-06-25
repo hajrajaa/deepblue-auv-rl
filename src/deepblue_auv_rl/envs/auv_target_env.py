@@ -59,6 +59,7 @@ class MissionConfig:
     target_velocity:tuple[float,float,float]=(0.03,0.02,0.0)
 
     obstacles_enabled:bool=False
+    moving_obstacles:bool=False
     num_obstacles:int=0
     obstacle_radius:float=1.0
     safe_distance:float=2.0
@@ -66,6 +67,8 @@ class MissionConfig:
 
     collision_penalty:float=-100.0
     obstacle_penalty_scale: float = 5.0
+
+    obstacle_velocity:tuple[float,float,float]=(0.0, 0.02, 0.0)
 
     
 
@@ -118,6 +121,7 @@ class AUVTargetEnv(gym.Env):
 
         self._holo_env:Any|None=None
         self._last_raw_state:Any|None=None
+        self._obstacle_positions_runtime:np.ndarray|None=None
 
         self.current_step=0
 
@@ -230,6 +234,7 @@ class AUVTargetEnv(gym.Env):
 
         self.commanded_position = self.__choose_start_position(options)
         self.target_position = self.__choose_target_position(options)
+        self._initialize_obstacle_positions()
 
         raw_state=self._holo_env.reset()
 
@@ -279,6 +284,9 @@ class AUVTargetEnv(gym.Env):
         # Optional: move target if moving_target is enabled
         if self.config.moving_target:
             self.target_position=(self.target_position+np.asarray(self.config.target_velocity, dtype=np.float32)).astype(np.float32)
+
+        if self.config.moving_obstacles:
+            self._advance_obstacles()
 
         
         
@@ -358,9 +366,28 @@ class AUVTargetEnv(gym.Env):
         if not self.config.random_start:
             return np.array(self.config.start_position, dtype=np.float32)
         
-        low=np.array([-5.0, -5.0, -88.0], dtype=np.float32)
-        high=np.array([5.0, 5.0, 3.0], dtype=np.float32)
+        low=np.array([-5.0, -5.0, -12.0], dtype=np.float32)
+        high=np.array([5.0, 5.0, -3.0], dtype=np.float32)
         return self.np_random.uniform(low=low, high=high).astype(np.float32)
+
+    def _initialize_obstacle_positions(self)-> None:
+        if not self.config.obstacles_enabled or self.config.num_obstacles == 0:
+            self._obstacle_positions_runtime = None
+            return
+
+        self._obstacle_positions_runtime = np.asarray(
+            self.config.obstacle_positions[: self.config.num_obstacles],
+            dtype=np.float32,
+        ).copy()
+
+    def _advance_obstacles(self)-> None:
+        if self._obstacle_positions_runtime is None:
+            return
+
+        velocity = np.asarray(self.config.obstacle_velocity, dtype=np.float32)
+        self._obstacle_positions_runtime = (
+            self._obstacle_positions_runtime + velocity
+        ).astype(np.float32)
 
     def __choose_target_position(self,options:dict[str, Any]|None)-> np.ndarray:
         if options and "target_position" in options:
@@ -522,7 +549,10 @@ class AUVTargetEnv(gym.Env):
             dummy_delta=np.array([0.0, 0.0, 0.0], dtype=np.float32)
             return dummy_delta, float(self.config.max_obstacle_sensor_range)
         
-        obstacle_positions=np.asarray(self.config.obstacle_positions[:self.config.num_obstacles], dtype=np.float32)
+        if self._obstacle_positions_runtime is not None:
+            obstacle_positions=self._obstacle_positions_runtime
+        else:
+            obstacle_positions=np.asarray(self.config.obstacle_positions[:self.config.num_obstacles], dtype=np.float32)
 
         deltas=obstacle_positions-position.astype(np.float32)
         distances=np.linalg.norm(deltas, axis=1)
