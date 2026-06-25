@@ -227,8 +227,9 @@ class AUVTargetEnv(gym.Env):
         self._ensure_holoocean_env()
         self.current_step=0
         self.yaw_deg=0.0
-        self.commanded_position=np.array(self.config.start_position, dtype=np.float32)
-        self.target_position=np.array(self.config.target_position, dtype=np.float32)
+
+        self.commanded_position = self.__choose_start_position(options)
+        self.target_position = self.__choose_target_position(options)
 
         raw_state=self._holo_env.reset()
 
