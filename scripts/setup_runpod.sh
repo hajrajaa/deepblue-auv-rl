@@ -6,6 +6,7 @@ cd "$PROJECT_ROOT"
 
 echo "Project root: $PROJECT_ROOT"
 echo "User: $(whoami)"
+echo "Home directory: $HOME"
 echo "Current directory: $(pwd)"
 
 if [ -d "/workspace" ]; then
@@ -17,51 +18,88 @@ fi
 
 echo "Workspace directory: $WORKSPACE_DIR"
 
+
+run_root() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        echo "WARNING: Cannot run root command because sudo is not installed."
+        echo "Run this script as root, or install apt packages manually first."
+        return 1
+    fi
+}
+
 install_apt_packages() {
     echo "Installing system packages..."
 
-    if [ "$(id -u)" -eq 0 ]; then
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            build-essential \
-            git \
-            wget \
-            unzip \
-            tmux \
-            xvfb \
-            libgl1 \
-            libglib2.0-0 \
-            libxrender1 \
-            libxext6 \
-            libsm6 \
-            libx11-6 \
-            libegl1 \
-            libopengl0 \
-            mesa-utils \
-            python3-venv \
-            python3-pip
-    else
-        sudo apt-get update
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            build-essential \
-            git \
-            wget \
-            unzip \
-            tmux \
-            xvfb \
-            libgl1 \
-            libglib2.0-0 \
-            libxrender1 \
-            libxext6 \
-            libsm6 \
-            libx11-6 \
-            libegl1 \
-            libopengl0 \
-            mesa-utils \
-            python3-venv \
-            python3-pip
+    if ! run_root apt-get update; then
+        echo "Skipping apt install because we are not root and sudo is missing."
+        echo "This is OK only if you already installed the system packages."
+        return 0
     fi
+
+    run_root env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        build-essential \
+        git \
+        openssh-client \
+        ca-certificates \
+        curl \
+        wget \
+        unzip \
+        tmux \
+        xvfb \
+        python3-venv \
+        python3-pip \
+        vulkan-tools \
+        libvulkan1 \
+        mesa-vulkan-drivers \
+        mesa-utils \
+        libgl1 \
+        libegl1 \
+        libglvnd0 \
+        libopengl0 \
+        libglib2.0-0 \
+        libxrender1 \
+        libxext6 \
+        libsm6 \
+        libx11-6 \
+        libx11-xcb1 \
+        libxcb1 \
+        libxcb-dri3-0 \
+        libxcb-present0 \
+        libxkbcommon0
+
+    echo "System packages installed."
 }
+
+setup_holoocean_persistent_dir() {
+    echo "Setting persistent HoloOcean package directory..."
+
+    mkdir -p "$WORKSPACE_DIR/holoocean_data"
+    mkdir -p "$HOME/.local/share"
+
+    if [ -e "$HOME/.local/share/holoocean" ] && [ ! -L "$HOME/.local/share/holoocean" ]; then
+        BACKUP="$HOME/.local/share/holoocean_backup_$(date +%Y%m%d_%H%M%S)"
+        echo "Existing HoloOcean folder found. Moving it to: $BACKUP"
+        mv "$HOME/.local/share/holoocean" "$BACKUP"
+
+        if command -v rsync >/dev/null 2>&1; then
+            rsync -a "$BACKUP/" "$WORKSPACE_DIR/holoocean_data/" || true
+        else
+            cp -a "$BACKUP/." "$WORKSPACE_DIR/holoocean_data/" || true
+        fi
+    fi
+
+    if [ ! -L "$HOME/.local/share/holoocean" ]; then
+        ln -s "$WORKSPACE_DIR/holoocean_data" "$HOME/.local/share/holoocean"
+    fi
+
+    echo "HoloOcean data path:"
+    ls -la "$HOME/.local/share/holoocean"
+}
+
 
 setup_python_env() {
     echo "Creating Python virtual environment..."
@@ -107,23 +145,61 @@ install_holoocean_client() {
     cd "$PROJECT_ROOT"
 }
 
+check_network_for_holoocean() {
+    echo "Checking HoloOcean backend URL..."
+
+    source "$PROJECT_ROOT/.venv/bin/activate"
+
+    python - <<'PY' || true
+import holoocean.packagemanager as pm
+print("HoloOcean backend:", getattr(pm, "BACKEND_URL", "UNKNOWN"))
+PY
+}
+install_ocean_package_safe() {
+    echo "Installing Ocean package..."
+
+    source "$PROJECT_ROOT/.venv/bin/activate"
+
+    set +e
+    python scripts/install_ocean_package.py
+    STATUS=$?
+    set -e
+
+    if [ "$STATUS" -ne 0 ]; then
+        echo ""
+        echo "WARNING: Ocean package installation failed."
+        echo "This is usually because the HoloOcean backend is unreachable:"
+        echo "  [Errno 113] No route to host"
+        echo ""
+        echo "The Python client may still be installed correctly."
+        echo "But training cannot run until Ocean appears in installed packages."
+        echo ""
+        return 0
+    fi
+}
+
 main() {
     install_apt_packages
+    setup_holoocean_persistent_dir
     setup_python_env
     install_holoocean_client
+    check_network_for_holoocean
 
     source "$PROJECT_ROOT/.venv/bin/activate"
 
     echo "Testing GPU..."
-    python scripts/test_gpu.py
+    python scripts/test_gpu.py || true
 
-    echo "Installing Ocean package..."
-    python scripts/install_ocean_package.py
+    install_ocean_package_safe
 
     echo "Checking HoloOcean installation..."
-    python scripts/check_holoocean_install.py
+    python scripts/check_holoocean_install.py || true
 
-    echo "Phase 1 setup complete."
+    echo "Setup script finished."
+    echo ""
+    echo "Important:"
+    echo "If Installed packages is still [], Ocean is not installed."
+    echo "That is a HoloOcean backend/network problem, not a Python import problem."
 }
 
 main
