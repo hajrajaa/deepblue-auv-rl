@@ -368,8 +368,8 @@ class AUVTargetEnv(gym.Env):
         if not self.config.random_start:
             return np.array(self.config.start_position, dtype=np.float32)
         
-        low=np.array([-5.0, -5.0, -12.0], dtype=np.float32)
-        high=np.array([5.0, 5.0, -3.0], dtype=np.float32)
+        low = np.array([-2.0, -2.0, -6.0], dtype=np.float32)
+        high = np.array([2.0, 2.0, -4.0], dtype=np.float32)
         return self.np_random.uniform(low=low, high=high).astype(np.float32)
 
     def _initialize_obstacle_positions(self)-> None:
