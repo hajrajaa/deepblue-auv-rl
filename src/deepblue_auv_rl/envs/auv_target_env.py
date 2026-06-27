@@ -38,7 +38,7 @@ class MissionConfig:
     bounds_max:tuple[float,float,float]=(50.0,50.0,0.0)
 
     #Eposide settings
-    max_steps:int=200
+    max_steps:int=500
     reach_threshold:float=1.0
 
     #Discrete action sizes 
