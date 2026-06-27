@@ -203,7 +203,7 @@ def main():
         "environment": {
             "stage": args.stage,
             "random_start": args.stage in ["random_start_no_obstacles","moving_no_obstacles","moving_obstacles"],
-            "moving_target": args.stage in ["moving_no_obstacles","moving_obstacles"],
+            "moving_target": args.stage == "moving_no_obstacles",
             "obstacles_enabled": args.stage in ["fixed_obstacles","moving_obstacles"],
             "moving_obstacles": args.stage == "moving_obstacles",
         },

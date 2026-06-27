@@ -50,9 +50,9 @@ class MissionConfig:
     ticks_per_action:int=5
 
     #Reward parameters
-    goal_reward:float=100.0
-    step_penalty:float=-1.0
-    progress_reward_scale:float=5.0
+    goal_reward:float=200.0
+    step_penalty:float=-0.05
+    progress_reward_scale:float=10.0
     out_of_bounds_penalty:float=-50.0
 
     moving_target:bool=False
@@ -72,8 +72,11 @@ class MissionConfig:
 
     
 
-    obstacle_positions:tuple[tuple[float,float,float],...]=(
-        (3.0, 0.0, -5.0),
+    # obstacle_positions:tuple[tuple[float,float,float],...]=(
+    #     (3.0, 0.0, -5.0),
+    # )
+    obstacle_positions: tuple[tuple[float, float, float], ...] = (
+    (5.0, 2.0, -5.0),
     )
 
 
@@ -104,19 +107,18 @@ class AUVTargetEnv(gym.Env):
         # obs_low=np.array( [-1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, 0.0], dtype=np.float32)
         # obs_high=np.array([1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1.0], dtype=np.float32)
 
-        self.observation_space=spaces.Box(
+        self.observation_space = spaces.Box(
             low=np.array([
-                -50.0, -50.0, -50.0,0.0, # target dx,dy,dx, distance 
-                -50.0, -50.0, -50.0, 0.0, # obstacle position x,y,z, distance
-            ],
-            dtype=np.float32),
+                -50.0, -50.0, -50.0, 0.0,   # target dx, dy, dz, distance
+                -50.0, -50.0, -50.0, 0.0,   # obstacle dx, dy, dz, distance
+                -1.0, -1.0,                 # sin(yaw), cos(yaw)
+            ], dtype=np.float32),
             high=np.array([
                 50.0, 50.0, 50.0, 100.0,
-                50.0, 50.0, 50.0, self.config.max_obstacle_sensor_range
-            ],
-            dtype=np.float32),
+                50.0, 50.0, 50.0, self.config.max_obstacle_sensor_range,
+                1.0, 1.0,
+            ], dtype=np.float32),
             dtype=np.float32,
-
         )
 
         self._holo_env:Any|None=None
@@ -528,17 +530,22 @@ class AUVTargetEnv(gym.Env):
             f"Could not find position in HoloOcean state. Available keys: {available}"
         )
 
-    def _make_observation(self,position:np.ndarray)-> np.ndarray:
+    def _make_observation(self, position: np.ndarray) -> np.ndarray:
+        position = position.astype(np.float32)
 
-        position=position.astype(np.float32)
+        target_delta = self.target_position.astype(np.float32) - position
+        distance_to_target = float(np.linalg.norm(target_delta))
 
-        target_delta=self.target_position.astype(np.float32)-position
-        distance_to_target=float(np.linalg.norm(target_delta))
-        obstacle_delta, closest_obstacle_distance=self._get_closest_obstacle(position)
+        obstacle_delta, closest_obstacle_distance = self._get_closest_obstacle(position)
 
-        observation=np.array([
+        yaw_rad = math.radians(self.yaw_deg)
+        sin_yaw = math.sin(yaw_rad)
+        cos_yaw = math.cos(yaw_rad)
+
+        observation = np.array([
             target_delta[0], target_delta[1], target_delta[2], distance_to_target,
-            obstacle_delta[0], obstacle_delta[1], obstacle_delta[2], closest_obstacle_distance  
+            obstacle_delta[0], obstacle_delta[1], obstacle_delta[2], closest_obstacle_distance,
+            sin_yaw, cos_yaw,
         ], dtype=np.float32)
 
         return observation
