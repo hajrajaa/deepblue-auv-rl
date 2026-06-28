@@ -56,7 +56,7 @@ class MissionConfig:
     out_of_bounds_penalty:float=-50.0
 
     moving_target:bool=False
-    target_velocity: tuple[float, float, float] = (0.01, 0.005, 0.0)
+    target_velocity:tuple[float,float,float]=(0.03,0.02,0.0)
 
     obstacles_enabled:bool=False
     moving_obstacles:bool=False
