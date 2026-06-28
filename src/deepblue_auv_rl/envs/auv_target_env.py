@@ -56,7 +56,7 @@ class MissionConfig:
     out_of_bounds_penalty:float=-50.0
 
     moving_target:bool=False
-    target_velocity:tuple[float,float,float]=(0.03,0.02,0.0)
+    target_velocity: tuple[float, float, float] = (0.01, 0.005, 0.0)
 
     obstacles_enabled:bool=False
     moving_obstacles:bool=False
@@ -368,10 +368,10 @@ class AUVTargetEnv(gym.Env):
         if not self.config.random_start:
             return np.array(self.config.start_position, dtype=np.float32)
         
-        # low = np.array([-2.0, -2.0, -6.0], dtype=np.float32)
-        # high = np.array([2.0, 2.0, -4.0], dtype=np.float32)
-        low = np.array([-5.0, -5.0, -12.0], dtype=np.float32)
-        high = np.array([5.0, 5.0, -3.0], dtype=np.float32)
+        low = np.array([-2.0, -2.0, -6.0], dtype=np.float32)
+        high = np.array([2.0, 2.0, -4.0], dtype=np.float32)
+        # low = np.array([-5.0, -5.0, -12.0], dtype=np.float32)
+        # high = np.array([5.0, 5.0, -3.0], dtype=np.float32)
         return self.np_random.uniform(low=low, high=high).astype(np.float32)
 
     def _initialize_obstacle_positions(self)-> None:
