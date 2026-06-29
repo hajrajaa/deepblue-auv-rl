@@ -177,7 +177,15 @@ def run() -> None:
             episodes_csv=episodes_csv,
             summary_json=summary_json,
         )
-        combined_rows.append(summary_row(summary, policy="target_seeking", stage=stage))
+
+        summary_for_csv = dict(summary)
+
+        # Compatibility with shared summary_row(), which expects "timeouts_rate"
+        if "timeouts_rate" not in summary_for_csv and "timeout_rate" in summary_for_csv:
+            summary_for_csv["timeouts_rate"] = summary_for_csv["timeout_rate"]
+
+        combined_rows.append(summary_row(summary_for_csv, policy="target_seeking", stage=stage))
+        
         print_summary(summary, title=f"Target-Seeking Baseline: {stage}")
 
     summary_csv = save_baseline_summary_csv(
