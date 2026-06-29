@@ -18,7 +18,7 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from deepblue_auv_rl.evaluation.evaluate import REPORT_STAGES
+from deepblue_auv_rl.evaluation.evaluate import ALL_STAGES
 
 
 DEFAULT_CROSS_SUMMARY = REPO_ROOT / "outputs" / "eval" / "cross_eval_summary.csv"
@@ -131,7 +131,7 @@ def stage_label(stage: str) -> str:
 
 
 def extract_stage_from_model(model_name: str) -> str | None:
-    for stage in REPORT_STAGES:
+    for stage in ALL_STAGES:
         if stage in model_name:
             return stage
     return None
@@ -206,14 +206,14 @@ def load_baseline_rows(paths: list[Path], stages: list[str]) -> list[dict[str, A
 
 def ordered_stages(rows: list[dict[str, Any]]) -> list[str]:
     present = {str(row["stage"]) for row in rows}
-    ordered = [stage for stage in REPORT_STAGES if stage in present]
+    ordered = [stage for stage in ALL_STAGES if stage in present]
     ordered.extend(sorted(present - set(ordered)))
     return ordered
 
 
 def ordered_series(rows: list[dict[str, Any]]) -> list[str]:
     preferred_ppo: list[str] = []
-    for stage in REPORT_STAGES:
+    for stage in ALL_STAGES:
         label = f"PPO {stage_label(stage)}"
         if any(row["series"] == label for row in rows):
             preferred_ppo.append(label)
@@ -306,7 +306,7 @@ def ordered_heatmap_models(cross_rows: list[dict[str, Any]]) -> list[str]:
 
     ordered = [
         model_by_stage[stage]
-        for stage in REPORT_STAGES
+        for stage in ALL_STAGES
         if stage in model_by_stage
     ]
     ordered.extend(
