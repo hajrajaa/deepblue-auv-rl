@@ -27,10 +27,11 @@ CSV_COLUMNS = [
 ]
 
 STAGE_ORDER = {
-    "random_start_no_obstacles": 0,
-    "moving_no_obstacles": 1,
-    "fixed_obstacles": 2,
-    "moving_obstacles": 3,
+    "fixed_no_obstacles": 0,
+    "random_start_no_obstacles": 1,
+    "moving_no_obstacles": 2,
+    "fixed_obstacles": 3,
+    "moving_obstacles": 4,
 }
 
 
@@ -89,7 +90,7 @@ def main() -> None:
     input_dir = resolve_path(args.input_dir)
     output_path = resolve_path(args.output)
 
-    summary_paths = sorted(input_dir.glob("*_summary.json"))
+    summary_paths = sorted(input_dir.rglob("*_summary.json"))
     if not summary_paths:
         raise SystemExit(f"No *_summary.json files found in {input_dir}")
 
