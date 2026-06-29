@@ -16,7 +16,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from deepblue_auv_rl.evaluation.evaluate import (
-    REPORT_STAGES,
+    ALL_STAGES,
     baseline_output_paths,
     evaluate_episodes,
     make_env,
@@ -118,8 +118,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--stages",
         nargs="+",
-        choices=REPORT_STAGES,
-        default=list(REPORT_STAGES),
+        choices=ALL_STAGES,
+        default=list(ALL_STAGES),
         help="Stages to evaluate.",
     )
     return parser.parse_args()
