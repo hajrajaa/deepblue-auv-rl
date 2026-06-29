@@ -21,7 +21,7 @@ TENSORBOARD_DIR= REPO_ROOT /"logs" / "tensorboard"
 RESULT_DIR= REPO_ROOT / "results"/"evaluation"
 
 
-def build_env_config(stage:str)-> MissionConfig:
+def build_env_config(stage:str, max_steps:int)-> MissionConfig:
     """ Build a MissionConfig based on the training stage."""
 
     if stage=="fixed_no_obstacles":
@@ -30,6 +30,7 @@ def build_env_config(stage:str)-> MissionConfig:
             random_target=False,
             moving_target=False,
             obstacles_enabled=False,
+            max_steps=max_steps,
         )
     if stage=="random_start_no_obstacles":
         return MissionConfig(
@@ -37,6 +38,7 @@ def build_env_config(stage:str)-> MissionConfig:
             random_target=False,
             moving_target=False,
             obstacles_enabled=False,
+            max_steps=max_steps,
         )
     if stage=="moving_no_obstacles":
         return MissionConfig(
@@ -44,6 +46,7 @@ def build_env_config(stage:str)-> MissionConfig:
             random_target=False,
             moving_target=True,
             obstacles_enabled=False,
+            max_steps=max_steps,
         )
     if stage=="fixed_obstacles":
         return MissionConfig(
@@ -52,6 +55,7 @@ def build_env_config(stage:str)-> MissionConfig:
             moving_target=False,
             obstacles_enabled=True,
             num_obstacles=1,
+            max_steps=max_steps,
         )
     if stage=="moving_obstacles":
         return MissionConfig(
@@ -61,14 +65,15 @@ def build_env_config(stage:str)-> MissionConfig:
             obstacles_enabled=True,
             num_obstacles=1,
             moving_obstacles=True,
+            max_steps=max_steps,
         )
     raise ValueError(f"Unknown training stage: {stage}. Valid stages are: fixed_no_obstacles, random_start_no_obstacles, moving_no_obstacles, fixed_obstacles, moving_obstacles.")
     
     
 
-def make_env(seed:int,stage:str,monitor_path:Path):
+def make_env(seed:int,stage:str,monitor_path:Path,max_steps:int):
     def _init():
-        config=build_env_config(stage)
+        config=build_env_config(stage,max_steps)
         env= AUVTargetEnv(
             config=config,
             show_viewport=False,
@@ -122,7 +127,7 @@ def parse_args():
         default=None,
         help="Path to an existing PPO model to continue training from."
     )
-    
+
 
     return parser.parse_args()
 
@@ -148,12 +153,13 @@ def main():
     print(f"Total Timesteps: {args.total_timesteps}")
     print(f"Seed: {args.seed}")
     print(f"Device: {args.device}")
+    print(f"Max steps per episode: {args.max_steps}")
     print(f"Model directory: {MODEL_DIR}")
     print(f"Log directory: {LOG_DIR}")
     print("=" * 50)
 
 
-    env= DummyVecEnv([make_env(args.seed, args.stage, monitor_path)])
+    env= DummyVecEnv([make_env(args.seed, args.stage, monitor_path, args.max_steps)])
 
 
     if args.load_model is not None:
@@ -198,6 +204,7 @@ def main():
         "total_timesteps": args.total_timesteps,
         "seed": args.seed,
         "device": args.device,
+        "max_steps": args.max_steps,
         "model_path": str(model_path),
         "elapsed_time_seconds": elapsed_time,
         "environment": {

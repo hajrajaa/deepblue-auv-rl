@@ -616,6 +616,48 @@ class AUVTargetEnv(gym.Env):
            
         }
 
+    def get_auv_position(self) -> list[float] | None:
+        if self._last_raw_state is None:
+            return None
+
+        position = self._extract_position(self._last_raw_state)
+        return [float(position[0]), float(position[1]), float(position[2])]
+
+    def get_target_position(self) -> list[float]:
+        return [
+            float(self.target_position[0]),
+            float(self.target_position[1]),
+            float(self.target_position[2]),
+        ]
+
+    def get_obstacle_positions(self) -> list[list[float]]:
+        if not self.config.obstacles_enabled or self.config.num_obstacles <= 0:
+            return []
+
+        if self._obstacle_positions_runtime is not None:
+            obstacle_positions = self._obstacle_positions_runtime
+        else:
+            obstacle_positions = np.asarray(
+                self.config.obstacle_positions[: self.config.num_obstacles],
+                dtype=np.float32,
+            )
+
+        return [
+            [float(position[0]), float(position[1]), float(position[2])]
+            for position in obstacle_positions[: self.config.num_obstacles]
+        ]
+
+    def get_demo_state(self) -> dict[str, Any]:
+        return {
+            "auv_position": self.get_auv_position(),
+            "target_position": self.get_target_position(),
+            "obstacle_positions": self.get_obstacle_positions(),
+            "obstacles_enabled": bool(self.config.obstacles_enabled),
+            "moving_obstacles": bool(self.config.moving_obstacles),
+            "obstacle_radius": float(self.config.obstacle_radius),
+            "safe_distance": float(self.config.safe_distance),
+        }
+
     def debug_state_keys(self)->dict[str, Any]:
         if self._last_raw_state is None:
             raise RuntimeError("No state available. Please reset the environment first.")
