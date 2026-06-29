@@ -143,6 +143,278 @@ def position_columns(prefix: str, value: Any) -> dict[str, float | str]:
         }
 
 
+def as_xyz(value: Any) -> list[float] | None:
+    if value is None:
+        return None
+
+    try:
+        return [float(value[0]), float(value[1]), float(value[2])]
+    except (TypeError, IndexError, KeyError, ValueError):
+        return None
+
+
+def collect_positions(raw_positions: Any) -> list[list[float]]:
+    if raw_positions is None:
+        return []
+
+    positions: list[list[float]] = []
+    try:
+        iterator = raw_positions.values() if isinstance(raw_positions, dict) else raw_positions
+        for item in iterator:
+            position = as_xyz(item)
+            if position is not None:
+                positions.append(position)
+    except TypeError:
+        position = as_xyz(raw_positions)
+        if position is not None:
+            positions.append(position)
+
+    return positions
+
+
+def read_demo_state(env: Any, info: dict[str, Any]) -> dict[str, Any]:
+    get_demo_state = getattr(env, "get_demo_state", None)
+    if callable(get_demo_state):
+        state = dict(get_demo_state())
+    else:
+        state = {}
+
+    config = getattr(env, "config", None)
+
+    target_position = as_xyz(state.get("target_position"))
+    if target_position is None:
+        target_position = as_xyz(info.get("target_position"))
+    if target_position is None:
+        target_position = as_xyz(getattr(env, "target_position", None))
+
+    obstacle_positions = collect_positions(state.get("obstacle_positions"))
+    if not obstacle_positions:
+        get_obstacle_positions = getattr(env, "get_obstacle_positions", None)
+        if callable(get_obstacle_positions):
+            obstacle_positions = collect_positions(get_obstacle_positions())
+    if not obstacle_positions and config is not None:
+        num_obstacles = int(getattr(config, "num_obstacles", 0))
+        if bool(getattr(config, "obstacles_enabled", False)) and num_obstacles > 0:
+            obstacle_positions = collect_positions(
+                getattr(config, "obstacle_positions", ())[:num_obstacles]
+            )
+
+    return {
+        "target_position": target_position,
+        "obstacle_positions": obstacle_positions,
+        "moving_target": bool(getattr(config, "moving_target", False)),
+        "moving_obstacles": bool(
+            state.get("moving_obstacles", getattr(config, "moving_obstacles", False))
+        ),
+        "obstacle_radius": float(
+            state.get("obstacle_radius", getattr(config, "obstacle_radius", 1.0))
+        ),
+    }
+
+
+class DemoMarkerManager:
+    def __init__(self, env: Any, enabled: bool = True) -> None:
+        self.env = env
+        self.enabled = enabled
+        self._spawned_static_props = False
+        self._warned_unavailable = False
+        self._announced = False
+
+    def update(self, info: dict[str, Any]) -> None:
+        if not self.enabled:
+            return
+
+        demo_state = read_demo_state(self.env, info)
+        target_position = demo_state["target_position"]
+        obstacle_positions = demo_state["obstacle_positions"]
+        moving_target = bool(demo_state["moving_target"])
+        moving_obstacles = bool(demo_state["moving_obstacles"])
+        obstacle_radius = max(float(demo_state["obstacle_radius"]), 0.4)
+
+        if target_position is None:
+            return
+
+        spawned_any = self._spawn_static_props(
+            target_position=target_position,
+            obstacle_positions=obstacle_positions,
+            obstacle_radius=obstacle_radius,
+            moving_target=moving_target,
+            moving_obstacles=moving_obstacles,
+        )
+
+        drew_any = self._draw_debug_markers(
+            target_position=target_position,
+            obstacle_positions=obstacle_positions,
+            obstacle_radius=obstacle_radius,
+            moving_obstacles=moving_obstacles,
+        )
+
+        if (spawned_any or drew_any) and not self._announced:
+            print(
+                "Demo markers enabled: green=target, red=fixed obstacle, "
+                "orange=moving obstacle."
+            )
+            self._announced = True
+        elif not (spawned_any or drew_any):
+            self._warn_unavailable()
+
+    def _holo_env(self) -> Any | None:
+        return getattr(self.env, "_holo_env", None)
+
+    def _spawn_static_props(
+        self,
+        *,
+        target_position: list[float],
+        obstacle_positions: list[list[float]],
+        obstacle_radius: float,
+        moving_target: bool,
+        moving_obstacles: bool,
+    ) -> bool:
+        if self._spawned_static_props:
+            return False
+
+        holo_env = self._holo_env()
+        spawn_prop = getattr(holo_env, "spawn_prop", None)
+        if not callable(spawn_prop):
+            return False
+
+        spawned_any = False
+        if not moving_target:
+            spawned_any = self._try_spawn_prop(
+                prop_type="sphere",
+                location=target_position,
+                scale=0.8,
+                material="grass",
+                tag="demo_target_marker",
+            ) or spawned_any
+
+        if not moving_obstacles:
+            for obstacle_idx, obstacle_position in enumerate(obstacle_positions):
+                spawned_any = self._try_spawn_prop(
+                    prop_type="sphere",
+                    location=obstacle_position,
+                    scale=max(obstacle_radius * 2.0, 0.8),
+                    material="brick",
+                    tag=f"demo_obstacle_marker_{obstacle_idx}",
+                ) or spawned_any
+
+        self._spawned_static_props = True
+        return spawned_any
+
+    def _try_spawn_prop(
+        self,
+        *,
+        prop_type: str,
+        location: list[float],
+        scale: float,
+        material: str,
+        tag: str,
+    ) -> bool:
+        holo_env = self._holo_env()
+        spawn_prop = getattr(holo_env, "spawn_prop", None)
+        if not callable(spawn_prop):
+            return False
+
+        try:
+            spawn_prop(
+                prop_type=prop_type,
+                location=location,
+                rotation=[0.0, 0.0, 0.0],
+                scale=scale,
+                sim_physics=False,
+                material=material,
+                tag=tag,
+            )
+            return True
+        except TypeError:
+            try:
+                spawn_prop(prop_type, location, [0.0, 0.0, 0.0], scale, False, material, tag)
+                return True
+            except Exception:
+                return False
+        except Exception:
+            return False
+
+    def _draw_debug_markers(
+        self,
+        *,
+        target_position: list[float],
+        obstacle_positions: list[list[float]],
+        obstacle_radius: float,
+        moving_obstacles: bool,
+    ) -> bool:
+        drew_any = self._draw_marker(
+            location=target_position,
+            color=[0, 255, 0],
+            extent=[0.5, 0.5, 0.5],
+            thickness=18.0,
+        )
+
+        obstacle_color = [255, 165, 0] if moving_obstacles else [255, 0, 0]
+        for obstacle_position in obstacle_positions:
+            drew_any = self._draw_marker(
+                location=obstacle_position,
+                color=obstacle_color,
+                extent=[obstacle_radius, obstacle_radius, obstacle_radius],
+                thickness=20.0,
+            ) or drew_any
+
+        return drew_any
+
+    def _draw_marker(
+        self,
+        *,
+        location: list[float],
+        color: list[int],
+        extent: list[float],
+        thickness: float,
+    ) -> bool:
+        holo_env = self._holo_env()
+        if holo_env is None:
+            return False
+
+        drew_any = False
+        draw_point = getattr(holo_env, "draw_point", None)
+        if callable(draw_point):
+            try:
+                draw_point(location, color=color, thickness=thickness, lifetime=1.0)
+                drew_any = True
+            except TypeError:
+                try:
+                    draw_point(loc=location, color=color, thickness=thickness, lifetime=1.0)
+                    drew_any = True
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        draw_box = getattr(holo_env, "draw_box", None)
+        if callable(draw_box):
+            try:
+                draw_box(location, extent, color=color, thickness=5.0, lifetime=1.0)
+                drew_any = True
+            except TypeError:
+                try:
+                    draw_box(center=location, extent=extent, color=color, thickness=5.0, lifetime=1.0)
+                    drew_any = True
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        return drew_any
+
+    def _warn_unavailable(self) -> None:
+        if self._warned_unavailable:
+            return
+
+        print(
+            "Warning: HoloOcean marker APIs were not available. The rollout "
+            "still runs, but target/obstacle demo markers could not be drawn."
+        )
+        self._warned_unavailable = True
+
+
 def make_log_row(
     *,
     episode: int,
@@ -255,6 +527,11 @@ def parse_args() -> argparse.Namespace:
         default=0.05,
         help="Seconds to sleep after each environment step.",
     )
+    parser.add_argument(
+        "--no-markers",
+        action="store_true",
+        help="Disable demo-only target/obstacle markers in the HoloOcean viewport.",
+    )
     return parser.parse_args()
 
 
@@ -267,9 +544,11 @@ def run_episode(
     seed: int,
     deterministic: bool,
     sleep_seconds: float,
+    markers_enabled: bool,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     env.action_space.seed(seed)
     obs, info = env.reset(seed=seed)
+    marker_manager = DemoMarkerManager(env, enabled=markers_enabled)
 
     print(f"\nEpisode {episode}/{total_episodes}")
     print(f"seed={seed}")
@@ -286,6 +565,7 @@ def run_episode(
     )
     rows.append(initial_row)
     print_rollout_step(initial_row)
+    marker_manager.update(info)
 
     episode_return = 0.0
     step = 0
@@ -320,6 +600,7 @@ def run_episode(
         )
         rows.append(row)
         print_rollout_step(row)
+        marker_manager.update(step_info)
 
         if sleep_seconds > 0.0:
             time.sleep(sleep_seconds)
@@ -389,6 +670,7 @@ def run() -> None:
         print(f"  seed: {args.seed}")
         print(f"  deterministic: {deterministic}")
         print(f"  sleep per step: {args.sleep}")
+        print(f"  demo markers: {not args.no_markers}")
         print(f"  csv log: {csv_path}")
 
         for episode_idx in range(args.episodes):
@@ -400,6 +682,7 @@ def run() -> None:
                 seed=args.seed + episode_idx,
                 deterministic=deterministic,
                 sleep_seconds=float(args.sleep),
+                markers_enabled=not args.no_markers,
             )
             all_rows.extend(rows)
             summaries.append(summary)
