@@ -279,20 +279,6 @@ _Success rate when each trained PPO checkpoint is tested on each stage._
 
 _Collision rate when each trained PPO checkpoint is tested on each stage._
 
-### Rollout Trajectory Plots
-
-![Moving obstacles rollout episode 1](outputs/rollouts/final_moving_obstacles/trajectory_ppo_curriculum_new_moving_obstacles_150000_steps_seed_42_moving_obstacles_ep01_seed_5000_success.png)
-
-_Moving-obstacle rollout, episode 1, ending in success._
-
-![Moving obstacles rollout episode 2](outputs/rollouts/final_moving_obstacles/trajectory_ppo_curriculum_new_moving_obstacles_150000_steps_seed_42_moving_obstacles_ep02_seed_5001_timeout.png)
-
-_Moving-obstacle rollout, episode 2, ending in timeout._
-
-![Moving obstacles rollout episode 3](outputs/rollouts/final_moving_obstacles/trajectory_ppo_curriculum_new_moving_obstacles_150000_steps_seed_42_moving_obstacles_ep03_seed_5002_success.png)
-
-_Moving-obstacle rollout, episode 3, ending in success._
-
 ## Videos and GIFs
 
 Existing GIF demos found in `outputs/videos/`:
