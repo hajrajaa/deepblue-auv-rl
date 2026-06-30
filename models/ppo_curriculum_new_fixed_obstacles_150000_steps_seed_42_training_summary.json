@@ -1,0 +1,16 @@
+{
+  "algorithm": "PPO",
+  "policy": "MlpPolicy",
+  "total_timesteps": 150000,
+  "seed": 42,
+  "device": "auto",
+  "model_path": "/workspace/deepblue-auv-rl/models/ppo_curriculum_new_fixed_obstacles_150000_steps_seed_42.zip",
+  "elapsed_time_seconds": 9812.655938386917,
+  "environment": {
+    "stage": "fixed_obstacles",
+    "random_start": false,
+    "moving_target": false,
+    "obstacles_enabled": true,
+    "moving_obstacles": false
+  }
+}
