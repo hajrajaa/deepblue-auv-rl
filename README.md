@@ -283,29 +283,29 @@ _Collision rate when each trained PPO checkpoint is tested on each stage._
 
 Existing GIF demos found in `outputs/videos/`:
 
-![Fixed no obstacles demo](outputs/videos/Fixed_no_obstacles.gif)
-
 _Fixed start and target with no obstacles._
 
-![Random start no obstacle demo](outputs/videos/Random_start_no_obstcale.gif)
+![Fixed no obstacles demo](outputs/videos/Fixed_no_obstacles.gif)
 
 _Random-start target-reaching demo with no obstacles._
 
-![Moving target no obstacle demo](outputs/videos/Moving_no_obstacle.gif)
+![Random start no obstacle demo](outputs/videos/Random_start_no_obstcale.gif)
 
 _Moving-target demo without obstacles._
 
-![Fixed obstacle demo](outputs/videos/Fixed_obstcale.gif)
+![Moving target no obstacle demo](outputs/videos/Moving_no_obstacle.gif)
 
 _Fixed-obstacle demo._
 
-![Moving obstacle success demo](outputs/videos/moving_obstacle_success.gif)
+![Fixed obstacle demo](outputs/videos/Fixed_obstcale.gif)
 
 _Moving-obstacle demo ending in success._
 
-![Moving obstacle failure demo](outputs/videos/Moving_obstacle_fail.gif)
+![Moving obstacle success demo](outputs/videos/moving_obstacle_success.gif)
 
 _Moving-obstacle demo ending in failure._
+
+![Moving obstacle failure demo](outputs/videos/Moving_obstacle_fail.gif)
 
 
 ## Reproducibility
